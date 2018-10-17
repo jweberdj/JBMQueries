@@ -1,0 +1,32 @@
+-- Order ordianl tiers by month for Homage
+with cte as(
+    select 
+        DATE_TRUNC('month',created_at) month_,
+        ROW_NUMBER () OVER (PARTITION BY customer__id ORDER BY created_at) AS order_ordinal,
+        total_price
+    from shopify.orders
+    where _mt_account_id = 1
+    AND created_at BETWEEN '2015-01-01' AND '2019-01-01'
+    order by 1,2
+)
+select 
+    month_,
+    CASE 
+        WHEN order_ordinal > 5
+            THEN '6+'
+        WHEN order_ordinal = 1
+            THEN '1'
+        WHEN order_ordinal = 2  
+            THEN '2'
+        WHEN order_ordinal = 3
+            THEN '3'
+        WHEN order_ordinal = 4
+            THEN '4'
+        WHEN order_ordinal = 5
+            THEN '5'
+    END,
+    COUNT(order_ordinal)
+    --avg(total_price)
+from cte
+group by 1,2
+order by 1, 2 asc

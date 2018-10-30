@@ -44,7 +44,7 @@ cte3 AS (
     where m._mt_account_id = 2
 ),
 cte4 as (
-    -- get each customer's very first order that was from the 'paid search' channel
+    -- get each customer's very first order along with the channel it was attributed to
     select customer__id
         , order_number
         , created_at
@@ -55,7 +55,7 @@ cte4 as (
     where row_num = 1
 ),
 cte5 as (
-    -- get first order date by customers who's very first order was from the 'paid search' channel
+    -- get first order date by customers who's very first order
     select so._mt_account_id
         , so.order_number
         , so.customer__id
@@ -68,7 +68,7 @@ cte5 as (
     -- get first order date and all other orders by customers who's very first order was from the 'paid search' channel
     select m._mt_account_id as account_id
     , m.customer__id as customer_id
-    , c5.channel
+    , c5.channel as channel
     , m.created_at as order_date
     , c5.first_order_date as acquisition_date
     , m.total_price as revenue
@@ -76,4 +76,4 @@ cte5 as (
     inner join cte5 as c5 on m.customer__id = c5.customer__id and m._mt_account_id = c5._mt_account_id
     where m.created_at >= c5.first_order_date
     group by 1,2,3,4,5,6
-    order by 1
+    order by 2, 5 asc, 4 asc

@@ -33,10 +33,14 @@ cte3 AS (
         , m.customer__id
         , m.order_number
         , m.created_at
-        , cx.channel
+        , CASE
+            WHEN cx.channel is not NULL
+                THEN cx.channel
+            ELSE 'undefined'
+          END AS channel
         , m._mt_account_id
     from shopify.orders as m
-    inner join ctex as cx on m.order_number = cx.o_id
+    left join ctex as cx on m.order_number = cx.o_id
     where m._mt_account_id = 2
 ),
 cte4 as (
@@ -45,9 +49,10 @@ cte4 as (
         , order_number
         , created_at
         , _mt_account_id
+        , channel
     from cte3
-    where channel ILIKE '%paid%search%'
-    and row_num = 1
+    --where channel ILIKE '%paid%search%'
+    where row_num = 1
 ),
 cte5 as (
     -- get first order date by customers who's very first order was from the 'paid search' channel
@@ -55,17 +60,20 @@ cte5 as (
         , so.order_number
         , so.customer__id
         , min(so.created_at) as  first_order_date
+        , c4.channel
     from shopify.orders as so
     inner join cte4 as c4 on so.customer__id = c4.customer__id and so._mt_account_id = c4._mt_account_id
-    group by 1,2,3
+    group by 1,2,3,5
 )
     -- get first order date and all other orders by customers who's very first order was from the 'paid search' channel
-    select m._mt_account_id
-    , m.customer__id
-    , m.created_at
-    , c5.first_order_date
-    , m.total_price
+    select m._mt_account_id as account_id
+    , m.customer__id as customer_id
+    , c5.channel
+    , m.created_at as order_date
+    , c5.first_order_date as acquisition_date
+    , m.total_price as revenue
     from shopify.orders as m
     inner join cte5 as c5 on m.customer__id = c5.customer__id and m._mt_account_id = c5._mt_account_id
-    group by 1,2,3,4,5
+    where m.created_at >= c5.first_order_date
+    group by 1,2,3,4,5,6
     order by 1

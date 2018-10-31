@@ -33,11 +33,7 @@ cte3 AS (
         , m.customer__id
         , m.order_number
         , m.created_at
-        , CASE
-            WHEN cx.channel is not NULL
-                THEN cx.channel
-            ELSE 'undefined'
-          END AS channel
+        , cx.channel
         , m._mt_account_id
     from shopify.orders as m
     left join ctex as cx on m.order_number = cx.o_id
@@ -49,31 +45,24 @@ cte4 as (
         , order_number
         , created_at
         , _mt_account_id
-        , channel
+        , CASE
+            WHEN channel is NULL
+                THEN 'undefined'
+            ELSE channel
+          END AS channel
     from cte3
     --where channel ILIKE '%affiliate%'
     where row_num = 1
-),
-cte5 as (
-    -- get first order date by customers who's very first order
-    select so._mt_account_id
-        , so.order_number
-        , so.customer__id
-        , min(so.created_at) as  first_order_date
-        , c4.channel
-    from shopify.orders as so
-    inner join cte4 as c4 on so.customer__id = c4.customer__id and so._mt_account_id = c4._mt_account_id
-    group by 1,2,3,5
 )
     -- get first order date and all other orders by customers who's very first order was from the 'paid search' channel
-    select c5.channel as channel
-    , DATE_TRUNC('month', m.created_at) as order_date
-    , DATE_TRUNC('month', c5.first_order_date) as acquisition_date
-    , SUM(m.total_price) as revenue
-    , COUNT(DISTINCT c5.order_number) as order_count
-    , SUM(m.total_price) / COUNT(DISTINCT c5.order_number) as average_order_value
+    select c4.channel as channel
+        , date_trunc('month', m.created_at) as order_date
+        , date_trunc('month', c4.created_at) as acquisition_date
+        , sum(m.total_price) as revenue
+        , COUNT(DISTINCT c4.order_number) as order_count
+        , sum(m.total_price) / COUNT(DISTINCT c4.order_number) as average_order_value
     from shopify.orders as m
-    inner join cte5 as c5 on m.customer__id = c5.customer__id and m._mt_account_id = c5._mt_account_id
-    where m.created_at >= c5.first_order_date
+    inner join cte4 as c4 on m.customer__id = c4.customer__id and m._mt_account_id = c4._mt_account_id
+    where m.created_at >= c4.created_at
     group by 1,2,3
     order by 3,2,1 desc

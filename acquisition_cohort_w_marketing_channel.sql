@@ -51,7 +51,7 @@ cte4 as (
         , _mt_account_id
         , channel
     from cte3
-    --where channel ILIKE '%paid%search%'
+    --where channel ILIKE '%affiliate%'
     where row_num = 1
 ),
 cte5 as (
@@ -66,14 +66,14 @@ cte5 as (
     group by 1,2,3,5
 )
     -- get first order date and all other orders by customers who's very first order was from the 'paid search' channel
-    select m._mt_account_id as account_id
-    , m.customer__id as customer_id
-    , c5.channel as channel
-    , m.created_at as order_date
-    , c5.first_order_date as acquisition_date
-    , m.total_price as revenue
+    select c5.channel as channel
+    , DATE_TRUNC('month', m.created_at) as order_date
+    , DATE_TRUNC('month', c5.first_order_date) as acquisition_date
+    , SUM(m.total_price) as revenue
+    , COUNT(DISTINCT c5.order_number) as order_count
+    , SUM(m.total_price) / COUNT(DISTINCT c5.order_number) as average_order_value
     from shopify.orders as m
     inner join cte5 as c5 on m.customer__id = c5.customer__id and m._mt_account_id = c5._mt_account_id
     where m.created_at >= c5.first_order_date
-    group by 1,2,3,4,5,6
-    order by 2, 5 asc, 4 asc
+    group by 1,2,3
+    order by 3,2,1 desc
